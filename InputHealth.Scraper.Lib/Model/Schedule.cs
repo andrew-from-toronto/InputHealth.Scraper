@@ -1,0 +1,58 @@
+﻿using System;
+using System.Collections.Generic;
+
+namespace InputHealth.Scraper.Lib.Model
+{
+    public class Schedule
+    {
+        public DateTimeOffset from { get; set; }
+        public DateTimeOffset to { get; set; }
+
+        public OnTime[] on_times { get; set; }
+        public ProviderUserOffTime[] provider_user_off_times { get; set; }
+        public Appointment[] appointments { get; set; }
+    }
+
+    public class OnTime
+    {
+        public int id { get; set; }
+        public int resource_id { get; set; }
+        public string resource_type { get; set; }
+
+        public DateTimeOffset from { get; set; }
+        public DateTimeOffset until { get; set; }
+        public int duration { get; set; }
+
+        public FlexibleHour flexible_hour { get; set; }
+    }
+
+    public class FlexibleHour
+    {
+        public int provider_user_id { get; set; }
+        public int location_id { get; set; }
+        public DateTimeOffset? start_time { get; set; }
+        public DateTimeOffset? end_time { get; set; }
+        public int slots { get; set; }
+        public int[] service_ids { get; set; }
+        public Dictionary<int, int> intervals_by_service_ids { get; set; }
+        public int on_time_id { get; set; }
+    }
+
+    public class ProviderUserOffTime
+    {
+        public int resource_id { get; set; }
+        public string resource_type { get; set; }
+
+        public DateTimeOffset from { get; set; }
+        public DateTimeOffset until { get; set; }
+    }
+
+    public class Appointment
+    {
+        public int id { get; set; }
+        public int provider_user_id { get; set; }
+
+        public DateTimeOffset start_at { get; set; }
+        public DateTimeOffset until_at { get; set; }
+    }
+}
