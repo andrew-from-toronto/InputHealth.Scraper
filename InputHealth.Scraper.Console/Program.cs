@@ -13,7 +13,8 @@ namespace InputHealth.Scraper.CLI
             var availibility = await InputHealthAPIClient.GetAvailabilityAsync();
 
             var availableIntervals = (from x in availibility
-                                      let Availability = x.IntervalAvailable.Where(y => y.Value > 0).ToArray()
+                                      where x.IsPublic
+                                      let Availability = x.DailyAvailable.Where(y => y.Value > 0).ToArray()
                                       where Availability.Any()
                                       select new
                                       {
@@ -26,7 +27,7 @@ namespace InputHealth.Scraper.CLI
                 Console.WriteLine($"{location.Location.Name}: ");
                 foreach (var interval in location.Availability)
                 {
-                    Console.WriteLine($"\t{interval.Key.ToString("u")} - {interval.Value} available");
+                    Console.WriteLine($"\t{interval.Key.ToString("M")} - {interval.Value} available");
                 }
             }
 
