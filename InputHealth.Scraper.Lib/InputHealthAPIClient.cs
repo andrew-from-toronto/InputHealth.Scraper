@@ -117,6 +117,7 @@ namespace InputHealth.Scraper.Lib
             {
                 { 1301, 29 }, // international centre
                 { 1761, 28 }, // brampton soccer
+                {1300, 28 },
                 { 1302, 30 }, // paramount
                 { 152, 9 }, // caledon
             };
@@ -161,11 +162,6 @@ namespace InputHealth.Scraper.Lib
                     var date = intervalCapacity.Key;
 
                     var bookedOnInterval = location.IntervalBooked.Where(k => k.Key >= date && k.Key < date.AddMinutes(15));
-
-                    if (bookedOnInterval.Count() > 1)
-                    {
-                        //HMMMMM - this means the apt is overlapping and we may overreport availability through summing. we should probably have a way to pick or subtract from both or something
-                    }
 
                     location.IntervalAvailable[date] = intervalCapacity.Value - bookedOnInterval.Sum(x => x.Value);
                 }

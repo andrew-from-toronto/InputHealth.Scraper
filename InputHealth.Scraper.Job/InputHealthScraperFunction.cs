@@ -1,3 +1,4 @@
+using Azure.Storage.Blobs.Specialized;
 using InputHealth.Scraper.Lib;
 using Microsoft.Azure.WebJobs;
 using Microsoft.Extensions.Logging;
@@ -13,17 +14,15 @@ namespace InputHealth.Scraper.Job
     {
         [FunctionName("VaccinePeelScrapeTimer")]
         public static async Task RunAsync([TimerTrigger("0 */5 * * * *")] TimerInfo myTimer, ILogger log,
-            [Blob("generated/availability.json", FileAccess.Write, Connection = "OutputStorage")] Stream availabilityJson)
+            [Blob("generated/availability.json", FileAccess.ReadWrite, Connection = "OutputStorage")] BlockBlobClient availabilityJson)
         {
-            InputHealthAPIClient.EMULATE_DATA = false;
-
             log.LogInformation($"C# Timer trigger function executed at: {DateTime.Now}");
 
             var availability = await InputHealthAPIClient.GetAvailabilityAsync();
 
             var availableIntervals = (from x in availability
                                       where x.IsPublic
-                                      let Availability = x.IntervalAvailable.Where(y => y.Value > 0).ToArray()
+                                      let Availability = x.DailyAvailable.Where(y => y.Value > 0).ToArray()
                                       where Availability.Any()
                                       select new
                                       {
@@ -31,7 +30,15 @@ namespace InputHealth.Scraper.Job
                                           Availability = Availability
                                       }).ToArray();
 
-            await JsonSerializer.SerializeAsync(availabilityJson, availableIntervals);
+            using (var writeStream = await availabilityJson.OpenWriteAsync(true))
+            {
+                await JsonSerializer.SerializeAsync(writeStream, availableIntervals);
+            }
+
+            await availabilityJson.SetHttpHeadersAsync(new Azure.Storage.Blobs.Models.BlobHttpHeaders
+            {
+                ContentType = "application/json;"
+            });
         }
     }
 }
