@@ -145,13 +145,14 @@ namespace InputHealth.Scraper.Lib
                     continue;
                 }
 
-                if (!location.IntervalBooked.ContainsKey(interval) && !location.IntervalBooked.TryAdd(interval, 0))
+                if (!location.IntervalBooked.ContainsKey(interval))
                 {
-                    //HMMMMM
-                    throw new Exception("We shouldn't get here tbh");
+                    location.IntervalBooked[interval] = 1;
                 }
-
-                location.IntervalBooked[interval]++;
+                else
+                {
+                    location.IntervalBooked[interval]++;
+                }
             }
 
             // Calculate availability

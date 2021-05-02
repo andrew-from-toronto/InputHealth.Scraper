@@ -21,11 +21,10 @@ namespace InputHealth.Scraper.Job
             var availability = await InputHealthAPIClient.GetAvailabilityAsync();
 
             var availableIntervals = (from x in availability
-                                      where x.IsPublic
                                       let Availability = x.DailyAvailable.Where(y => y.Value > 0).ToArray()
                                       select new
                                       {
-                                          LocationName = x.Name,
+                                          LocationName = $"{x.Name}{(x.IsPublic ? "" : " (PHONE ONLY)")}",
                                           Availability = Availability
                                       }).ToArray();
 

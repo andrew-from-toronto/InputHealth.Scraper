@@ -10,19 +10,20 @@ namespace InputHealth.Scraper.CLI
         {
             InputHealthAPIClient.EMULATE_DATA = true;
 
-            var availibility = await InputHealthAPIClient.GetAvailabilityAsync();
+            var availability = await InputHealthAPIClient.GetAvailabilityAsync();
 
-            var availableIntervals = (from x in availibility
+            var availableIntervals = (from x in availability
                                       let Availability = x.DailyAvailable.Where(y => y.Value > 0).ToArray()
                                       select new
                                       {
                                           Location = x,
+                                          LocationName = $"{x.Name}{(x.IsPublic ? "" : " (PHONE ONLY)")}",
                                           Availability = Availability
                                       }).ToArray();
 
             foreach (var location in availableIntervals)
             {
-                Console.WriteLine($"{location.Location.Name}: ");
+                Console.WriteLine($"{location.LocationName}: ");
                 foreach (var interval in location.Availability)
                 {
                     Console.WriteLine($"\t{interval.Key.ToString("M")} - {interval.Value} available");
