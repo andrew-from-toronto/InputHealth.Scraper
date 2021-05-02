@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <meta http-equiv="refresh" content="150">
+    <title>Current Peel Vaccine Clinic Availability Summary</title>
+    <style>
+        body {
+            background-color: white;
+            font-family: Arial, Helvetica, sans-serif;
+        }
+
+        table tr td {
+            border: 1px solid lightgray;
+            border-collapse: collapse;
+        }
+
+        tr {
+            height: 50px;
+        }
+
+        td {
+            text-align: center;
+        }
+
+        .clinicname {
+            text-align: left;
+        }
+
+        .slots_available {
+            background-color: lightgreen;
+        }
+
+        li {
+            margin-top: 15px;
+        }
+    </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.1/moment.min.js"
+            integrity="sha512-qTXRIMyZIFb8iQcfjXWCO8+M5Tbc38Qi5WzdPOYZHIlZpzBHG3L3by84BBBOiRGiEb7KKtAOAs5qYdUiZiQNNQ=="
+            crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js" integrity="sha512-894YE6QWD5I59HgZOGReFYm4dnWc1Qt5NtvYSaNcOP+u1T9qYdvdihz0PPSiiqn/+/3e7Jo4EaG7TubfWGUrMQ==" crossorigin="anonymous"></script>
+    <script>
+        const MAX_ADVANCE_DAYS = 15;
+        $(function () {
+            var cacheBust = moment().format('x')
+            $.getJSON('https://vaccinepeelcapublic.blob.core.windows.net/generated/availability.json?t=' + cacheBust)
+                .done(function (result, status, xhr) {
+                    var lastModified = moment(xhr.getResponseHeader('Last-Modified'));
+                    $("#last_getdata_on").text(lastModified.format('MMM D (ddd) - hh:mm a'));
+                    $("#next_getdata_on").text(lastModified.add(5, 'minutes').format('MMM D (ddd) - hh:mm a'));
+
+                    const tableElement = document.getElementById('results');
+                    var headerRow = document.createElement('tr');
+                    headerRow = tableElement.appendChild(headerRow);
+
+
+                    var labelHeader = document.createElement('td');
+                    labelHeader.innerText = 'Clinic/Date';
+                    headerRow.appendChild(labelHeader);
+
+                    var currentDay = moment();
+                    for (var i = 0; i < MAX_ADVANCE_DAYS; i++) {
+                        var dayHeader = document.createElement('td');
+                        dayHeader = headerRow.appendChild(dayHeader);
+                        dayHeader.innerText = currentDay.format('MMM D (ddd)');
+                        currentDay.add(1, 'day');
+                    }
+
+                    for (var i in result) {
+                        var clinic = result[i]
+                        processClinic(clinic)
+                    }
+                });
+
+            function processClinic(clinic) {
+                var currentDay = moment();
+
+                var tableElement = document.getElementById('results');
+
+                var clinicRowElement = document.createElement('tr');
+                var appendedRow = tableElement.appendChild(clinicRowElement);
+                var clinicLabelElement = document.createElement('td');
+                clinicLabelElement.className = 'clinicname';
+
+                var clinicRegistrationLinkElement = document.createElement('a');
+                clinicRegistrationLinkElement.href = "https://peelregion.inputhealth.com/ebooking";
+                clinicRegistrationLinkElement.text = clinic.LocationName;
+                clinicLabelElement.appendChild(clinicRegistrationLinkElement);
+
+                appendedRow.appendChild(clinicLabelElement);
+
+                var dayCount = 0;
+                var currentDay = moment();
+                for (var i = 0; i < MAX_ADVANCE_DAYS; i++) {
+                    var cellElement = document.createElement('td');
+                    var dayAvailability = clinic.Availability.find(function (a) { return moment(a.Key).isSame(currentDay, 'date'); })
+                    if (!dayAvailability)
+                        dayAvailability = 0
+                    else {
+                        dayAvailability = dayAvailability.Value
+                        cellElement.className = 'slots_available';
+                    }
+                    cellElement.innerText = dayAvailability;
+                    appendedRow.appendChild(cellElement);
+
+                    currentDay.add(1, 'day');
+                }
+            }
+        });
+    </script>
+</head>
+<body>
+    <h2>vaccine-peel.ca - Vaccine Appointment Availability for clinics in Peel's <a href="https://peelregion.inputhealth.com/ebooking" target="_blank">Primary Booking System</a></h2>
+    <p>
+        Availability as of <span id='last_getdata_on'></span><br />
+        Next data update will take place at <span id='next_getdata_on'></span>
+    </p>
+    <p>
+        For availability at other clinics in Peel, and the rest of the GTA, please take a look at <a href="https://vaccine-gta.ca/" target="_blank">https://vaccine-gta.ca/</a>. This site is heavily based on their work.
+    </p>
+    <p>
+        OKD is the only clinic currently available to those 18+ in hotspot postal codes. The other clinics are expected to open up to this criteria as of May 3, 2021. Seek official announcements of this before booking there if not currently eligible.
+    </p>
+    <br />
+    <table id='results'>
+        <!-- to be inserted by JavaScript code -->
+    </table>
+    <br />
+    <p>
+        The clinics below are <strong>not</strong> bookable through the online system at this time, and this information is intended to help only those who are eligible at these clinics.
+    </p>
+    <table id="results-phone">
+
+    </table>
+</body>
+</html>

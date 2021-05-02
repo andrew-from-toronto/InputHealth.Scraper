@@ -8,14 +8,12 @@ namespace InputHealth.Scraper.CLI
     {
         static async System.Threading.Tasks.Task Main(string[] args)
         {
-            InputHealthAPIClient.EMULATE_DATA = false;
+            InputHealthAPIClient.EMULATE_DATA = true;
 
             var availibility = await InputHealthAPIClient.GetAvailabilityAsync();
 
             var availableIntervals = (from x in availibility
-                                      where x.IsPublic
                                       let Availability = x.DailyAvailable.Where(y => y.Value > 0).ToArray()
-                                      where Availability.Any()
                                       select new
                                       {
                                           Location = x,
@@ -30,8 +28,6 @@ namespace InputHealth.Scraper.CLI
                     Console.WriteLine($"\t{interval.Key.ToString("M")} - {interval.Value} available");
                 }
             }
-
-            var breakHere = true;
         }
     }
 }

@@ -32,6 +32,7 @@ namespace InputHealth.Scraper.Lib.Model
         public int location_id { get; set; }
         public DateTimeOffset? start_time { get; set; }
         public DateTimeOffset? end_time { get; set; }
+        public TimeSpan? duration => end_time - start_time;
         public int slots { get; set; }
         public int[] service_ids { get; set; }
         public Dictionary<int, int> intervals_by_service_ids { get; set; }
@@ -45,6 +46,7 @@ namespace InputHealth.Scraper.Lib.Model
 
         public DateTimeOffset from { get; set; }
         public DateTimeOffset until { get; set; }
+        public TimeSpan duration => until - from;
     }
 
     public class Appointment
@@ -54,5 +56,6 @@ namespace InputHealth.Scraper.Lib.Model
 
         public DateTimeOffset start_at { get; set; }
         public DateTimeOffset until_at { get; set; }
+        public TimeSpan duration => until_at - start_at;
     }
 }

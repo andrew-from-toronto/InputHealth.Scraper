@@ -3,11 +3,16 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 16
 VisualStudioVersion = 16.0.31205.134
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "InputHealth.Scraper.CLI", "InputHealth.Scraper.Console\InputHealth.Scraper.CLI.csproj", "{4FA46A4D-2727-4147-A5ED-B7A56252FE1D}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "InputHealth.Scraper.CLI", "InputHealth.Scraper.Console\InputHealth.Scraper.CLI.csproj", "{4FA46A4D-2727-4147-A5ED-B7A56252FE1D}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "InputHealth.Scraper.Lib", "InputHealth.Scraper.Lib\InputHealth.Scraper.Lib.csproj", "{E90625EA-A38E-45CB-A033-34D6A0F82D4B}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "InputHealth.Scraper.Lib", "InputHealth.Scraper.Lib\InputHealth.Scraper.Lib.csproj", "{E90625EA-A38E-45CB-A033-34D6A0F82D4B}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "InputHealth.Scraper.Job", "InputHealth.Scraper.Job\InputHealth.Scraper.Job.csproj", "{2F22E97A-3FE5-426F-AFB1-B66A0FA97ED9}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "InputHealth.Scraper.Job", "InputHealth.Scraper.Job\InputHealth.Scraper.Job.csproj", "{2F22E97A-3FE5-426F-AFB1-B66A0FA97ED9}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "WWWFrontend", "WWWFrontend", "{624A1C6E-2089-467D-A3E5-4A1BC10F5591}"
+	ProjectSection(SolutionItems) = preProject
+		index.html = index.html
+	EndProjectSection
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

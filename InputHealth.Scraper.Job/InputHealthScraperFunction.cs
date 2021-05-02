@@ -23,7 +23,6 @@ namespace InputHealth.Scraper.Job
             var availableIntervals = (from x in availability
                                       where x.IsPublic
                                       let Availability = x.DailyAvailable.Where(y => y.Value > 0).ToArray()
-                                      where Availability.Any()
                                       select new
                                       {
                                           LocationName = x.Name,

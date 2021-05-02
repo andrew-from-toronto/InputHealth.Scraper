@@ -58,7 +58,7 @@ namespace InputHealth.Scraper.Lib
 
         public static async Task<LocationAvailability[]> GetAvailabilityAsync()
         {
-            var cutOffTime = DateTimeOffset.Now.AddMinutes(-30);
+            var cutOffTime = DateTimeOffset.Now.AddMinutes(-15);
 
             var config = await GetConfiguration();
             var schedule = await GetSchedule();
@@ -117,7 +117,7 @@ namespace InputHealth.Scraper.Lib
             {
                 { 1301, 29 }, // international centre
                 { 1761, 28 }, // brampton soccer
-                {1300, 28 },
+                { 1300, 28 },
                 { 1302, 30 }, // paramount
                 { 152, 9 }, // caledon
             };
@@ -159,11 +159,12 @@ namespace InputHealth.Scraper.Lib
             {
                 foreach (var intervalCapacity in location.IntervalCapacity)
                 {
-                    var date = intervalCapacity.Key;
+                    var intervalStart = intervalCapacity.Key;
+                    var intervalEnd = intervalStart.AddMinutes(15);
 
-                    var bookedOnInterval = location.IntervalBooked.Where(k => k.Key >= date && k.Key < date.AddMinutes(15));
+                    var bookedOnInterval = location.IntervalBooked.Where(k => k.Key < intervalEnd && intervalStart < k.Key.AddMinutes(15));
 
-                    location.IntervalAvailable[date] = intervalCapacity.Value - bookedOnInterval.Sum(x => x.Value);
+                    location.IntervalAvailable[intervalStart] = intervalCapacity.Value - bookedOnInterval.Sum(x => x.Value);
                 }
             }
 
