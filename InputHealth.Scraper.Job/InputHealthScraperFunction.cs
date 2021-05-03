@@ -21,6 +21,7 @@ namespace InputHealth.Scraper.Job
             var availability = await InputHealthAPIClient.GetAvailabilityAsync();
 
             var availableIntervals = (from x in availability
+                                      orderby x.Id ascending
                                       let Availability = x.DailyAvailable.Where(y => y.Value > 0).ToArray()
                                       select new
                                       {
