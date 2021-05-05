@@ -114,7 +114,7 @@ namespace InputHealth.Scraper.Job
 
             var followUpStartDate = DateTime.UtcNow.AddDays((7 * 6) + 1); // Start 6 weeks + 1 day ahead 
 
-            var availability = await InputHealthAPIClient.GetAvailabilityAsync(followUpStartDate, followUpStartDate.AddMonths(1));
+            var availability = await InputHealthAPIClient.GetAvailabilityAsync(followUpStartDate, followUpStartDate.AddDays(7 * 6));
 
             var availableIntervals = (from x in availability
                                       orderby x.Id ascending
