@@ -34,8 +34,8 @@ namespace InputHealth.Scraper.Lib
             return JsonSerializer.Deserialize<Configuration>(rawJson);
         }
 
-        public static async Task<Schedule> GetSchedule() => await LoadSchedule(DateTime.UtcNow, DateTime.UtcNow.AddMonths(1));
-        public static async Task<Schedule> LoadSchedule(DateTime from, DateTime to)
+        public static async Task<Schedule> GetSchedule() => await GetSchedule(DateTime.UtcNow, DateTime.UtcNow.AddMonths(1));
+        public static async Task<Schedule> GetSchedule(DateTime from, DateTime to)
         {
             const string emulationPath = "EmulatedData/Schedule.json";
 
@@ -55,13 +55,14 @@ namespace InputHealth.Scraper.Lib
 
             return JsonSerializer.Deserialize<Schedule>(rawJson);
         }
-
-        public static async Task<LocationAvailability[]> GetAvailabilityAsync()
+        
+        public static async Task<LocationAvailability[]> GetAvailabilityAsync() => await GetAvailabilityAsync(DateTime.UtcNow, DateTime.UtcNow.AddMonths(1));
+        public static async Task<LocationAvailability[]> GetAvailabilityAsync(DateTime from, DateTime to)
         {
             var cutOffTime = DateTimeOffset.Now.AddMinutes(-15);
 
             var config = await GetConfiguration();
-            var schedule = await GetSchedule();
+            var schedule = await GetSchedule(from, to);
 
             var locationAvailabilities = new Dictionary<int, LocationAvailability>();
 

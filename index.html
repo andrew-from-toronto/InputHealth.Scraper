@@ -2,7 +2,6 @@
 <html>
 <head>
     <meta charset="utf-8" />
-    <meta http-equiv="refresh" content="150">
     <title>Current Peel Vaccine Clinic Availability Summary</title>
     <style>
         body {
@@ -40,39 +39,69 @@
             crossorigin="anonymous"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js" integrity="sha512-894YE6QWD5I59HgZOGReFYm4dnWc1Qt5NtvYSaNcOP+u1T9qYdvdihz0PPSiiqn/+/3e7Jo4EaG7TubfWGUrMQ==" crossorigin="anonymous"></script>
     <script>
-        const MAX_ADVANCE_DAYS = 15;
         $(function () {
-            var cacheBust = moment().format('x')
-            $.getJSON('https://vaccinepeelcapublic.blob.core.windows.net/generated/availability.json?t=' + cacheBust)
-                .done(function (result, status, xhr) {
-                    var lastModified = moment(xhr.getResponseHeader('Last-Modified'));
-                    $("#last_getdata_on").text(lastModified.format('MMM D (ddd) - hh:mm a'));
-                    $("#next_getdata_on").text(lastModified.add(5, 'minutes').format('MMM D (ddd) - hh:mm a'));
+            var MAX_ADVANCE_DAYS = 15;
+            var REFRESH_INTERVAL = 90 * 1000;
 
-                    const tableElement = document.getElementById('results');
-                    var headerRow = document.createElement('tr');
-                    headerRow = tableElement.appendChild(headerRow);
+            function loadAvailability() {
+                var cacheBust = moment().format('x')
+                $.getJSON('https://vaccinepeelcapublic.blob.core.windows.net/generated/availability.json?t=' + cacheBust)
+                    .done(processAvailability);
+            }
 
+            loadAvailability();
+            setInterval(loadAvailability, REFRESH_INTERVAL);
+            
+            function processAvailability(result, status, xhr) {
+                var lastModified = moment(xhr.getResponseHeader('Last-Modified'));
+                var lastRun = lastModified.clone().startOf('minute').subtract(lastModified.minute() % 5, 'minutes')
+                var lastRunTimeSeconds = lastModified.diff(lastRun, 'seconds');
 
-                    var labelHeader = document.createElement('td');
-                    labelHeader.innerText = 'Clinic/Date';
-                    headerRow.appendChild(labelHeader);
+                $("#last_getdata_on").text(lastRun.format('MMM D (ddd) - hh:mm a') + " (took ~" + lastRunTimeSeconds + "s)");
+                $("#next_getdata_on").text(lastModified.add(5, 'minutes').format('MMM D (ddd) - hh:mm a'));
 
-                    var currentDay = moment();
-                    for (var i = 0; i < MAX_ADVANCE_DAYS; i++) {
-                        var dayHeader = document.createElement('td');
-                        dayHeader = headerRow.appendChild(dayHeader);
-                        dayHeader.innerText = currentDay.format('MMM D (ddd)');
-                        currentDay.add(1, 'day');
-                    }
+                var calendarStart = moment()
+                var orderedBookings = result
+                    .flatMap(function (e) {
+                        return e.Booked
+                    }).flatMap(function (e) {
+                        return moment(e.Key);
+                    }).sort(function (a, b) {
+                        return a.unix() - b.unix();
+                    });
 
-                    for (var i in result) {
-                        var clinic = result[i]
-                        processClinic(clinic)
-                    }
-                });
+                if (orderedBookings.length > 0) {
+                    calendarStart = orderedBookings[0];
+                }
 
-            function processClinic(clinic) {
+                var tableElement = document.getElementById('results');
+                tableElement.innerHTML = '';
+                var headerRow = document.createElement('tr');
+                headerRow = tableElement.appendChild(headerRow);
+
+                var labelHeader = document.createElement('td');
+                labelHeader.innerText = 'Clinic/Date';
+                headerRow.appendChild(labelHeader);
+
+                var currentDay = calendarStart.clone();
+                for (var i = 0; i < MAX_ADVANCE_DAYS; i++) {
+                    var dayHeader = document.createElement('td');
+                    dayHeader = headerRow.appendChild(dayHeader);
+                    dayHeader.innerText = currentDay.format('MMM D (ddd)');
+                    currentDay.add(1, 'day');
+                }
+
+                for (var i in result) {
+                    var clinic = result[i]
+                    processClinic(calendarStart, clinic)
+                }
+            }
+
+            function processClinic(calendarStart, clinic) {
+                if ('LocationPublic' in clinic) {
+                    if (!clinic.LocationPublic && clinic.LocationName == "Internal Only") return;
+                }
+
                 var currentDay = moment();
 
                 var tableElement = document.getElementById('results');
@@ -82,24 +111,35 @@
                 var clinicLabelElement = document.createElement('td');
                 clinicLabelElement.className = 'clinicname';
 
-                var clinicRegistrationLinkElement = document.createElement('a');
-                clinicRegistrationLinkElement.href = "https://peelregion.inputhealth.com/ebooking";
-                clinicRegistrationLinkElement.text = clinic.LocationName;
-                clinicLabelElement.appendChild(clinicRegistrationLinkElement);
+                if (clinic.LocationPublic) {
+                    var clinicRegistrationLinkElement = document.createElement('a');
+                    clinicRegistrationLinkElement.href = "https://peelregion.inputhealth.com/ebooking";
+                    clinicRegistrationLinkElement.text = clinic.LocationName
+                    clinicLabelElement.appendChild(clinicRegistrationLinkElement);
+                } else {
+                    clinicLabelElement.innerText = clinic.LocationName + " (PHONE ONLY)";
+                }
 
                 appendedRow.appendChild(clinicLabelElement);
 
-                var currentDay = moment();
+                var currentDay = calendarStart.clone();
                 for (var i = 0; i < MAX_ADVANCE_DAYS; i++) {
                     var cellElement = document.createElement('td');
                     var dayAvailability = clinic.Availability.find(function (a) { return moment(a.Key).isSame(currentDay, 'date'); })
+                    var dayBooked = clinic.Booked.find(function (a) { return moment(a.Key).isSame(currentDay, 'date'); })
+                    
                     if (!dayAvailability)
                         dayAvailability = 0
                     else {
                         dayAvailability = dayAvailability.Value
                         cellElement.className = 'slots_available';
                     }
-                    cellElement.innerText = dayAvailability;
+                    var cellText = dayAvailability
+                    if (dayBooked) {
+                        var dayTotal = dayAvailability + dayBooked.Value
+                        cellText += " / " + dayTotal + "";
+                    }
+                    cellElement.innerHTML = cellText
                     appendedRow.appendChild(cellElement);
 
                     currentDay.add(1, 'day');
@@ -117,14 +157,13 @@
     <p>
         For availability at other clinics in Peel, and the rest of the GTA, please take a look at <a href="https://vaccine-gta.ca/" target="_blank">https://vaccine-gta.ca/</a>. This site is heavily based on their work.
     </p>
-    <p>
-        OKD is the only clinic currently available to those 18+ in hotspot postal codes. The other clinics are expected to open up to this criteria as of May 3, 2021. Seek official announcements of this before booking there if not currently eligible.
-    </p>
     <br />
     <table id='results'>
         <!-- to be inserted by JavaScript code -->
     </table>
+    <p>Current availability pretty accurate (left number) / total availability estimated (right number)</p>
     <br />
+	<p>Support my work here by <a href="https://www.buymeacoffee.com/vaccinepeelca" target="_blank">buying me a coffee</a> - Thank you!</p>
     <p>Please feel free to use my availability data in your own projects: <a href="https://vaccinepeelcapublic.blob.core.windows.net/generated/availability.json" target="_blank">https://vaccinepeelcapublic.blob.core.windows.net/generated/availability.json</a></p>
     <p>If you want to get in touch for any reason, please email me at <i>andrew AT vaccine-peel.ca</i></p>
     <p><a href="https://github.com/andrew-from-toronto/InputHealth.Scraper" target="_blank">Source Code</a></p>
