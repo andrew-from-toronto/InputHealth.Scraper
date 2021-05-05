@@ -107,12 +107,12 @@ namespace InputHealth.Scraper.Job
         }
 
         [FunctionName("VaccinePeelFollowUpsScrapeTimer")]
-        public static async Task VaccinePeelFollowUpsScrapeTimer([TimerTrigger("0 0 6-23 * * *", RunOnStartup = true)] TimerInfo myTimer, ILogger log,
+        public static async Task VaccinePeelFollowUpsScrapeTimer([TimerTrigger("0 0 6-20 * * *", RunOnStartup = true)] TimerInfo myTimer, ILogger log,
             [Blob("generated/availability-followups.json", FileAccess.ReadWrite, Connection = "OutputStorage")] BlockBlobClient availabilityJson)
         {
             log.LogInformation($"C# Timer trigger function executed at: {DateTime.UtcNow}");
 
-            var followUpStartDate = new DateTime(2021, 7, 1);
+            var followUpStartDate = DateTime.UtcNow.AddDays((7 * 6) + 1); // Start 6 weeks + 1 day ahead 
 
             var availability = await InputHealthAPIClient.GetAvailabilityAsync(followUpStartDate, followUpStartDate.AddMonths(1));
 
@@ -138,5 +138,5 @@ namespace InputHealth.Scraper.Job
                 ContentType = "application/json"
             });
         }
-        }
+    }
 }
