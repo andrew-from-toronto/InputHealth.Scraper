@@ -16,11 +16,11 @@ namespace InputHealth.Scraper.Lib.Model
 
         public Dictionary<DateTimeOffset, int> HourlyCapacity => IntervalCapacity.GroupBy(x => new DateTimeOffset(x.Key.Year, x.Key.Month, x.Key.Day, x.Key.Hour, 0, 0, x.Key.Offset)).ToDictionary(x => x.Key, v => v.Sum(y => y.Value));
         public Dictionary<DateTimeOffset, int> HourlyBooked => IntervalBooked.GroupBy(x => new DateTimeOffset(x.Key.Year, x.Key.Month, x.Key.Day, x.Key.Hour, 0, 0, x.Key.Offset)).ToDictionary(x => x.Key, v => v.Sum(y => y.Value));
-        public Dictionary<DateTimeOffset, int> HourlyAvailable => IntervalAvailable.GroupBy(x => new DateTimeOffset(x.Key.Year, x.Key.Month, x.Key.Day, x.Key.Hour, 0, 0, x.Key.Offset)).ToDictionary(x => x.Key, v => v.Sum(y => y.Value));
+        public Dictionary<DateTimeOffset, int> HourlyAvailable => IntervalAvailable.GroupBy(x => new DateTimeOffset(x.Key.Year, x.Key.Month, x.Key.Day, x.Key.Hour, 0, 0, x.Key.Offset)).ToDictionary(x => x.Key, v => v.Where(y => y.Value > 0).Sum(y => y.Value));
 
-        public Dictionary<DateTimeOffset, int> DailyCapacity => IntervalCapacity.GroupBy(x => new DateTimeOffset(x.Key.Year, x.Key.Month, x.Key.Day, 0, 0, 0, x.Key.Offset)).ToDictionary(x => x.Key, v => v.Sum(y => y.Value));
-        public Dictionary<DateTimeOffset, int> DailyBooked => IntervalBooked.GroupBy(x => new DateTimeOffset(x.Key.Year, x.Key.Month, x.Key.Day, 0, 0, 0, x.Key.Offset)).ToDictionary(x => x.Key, v => v.Sum(y => y.Value));
-        public Dictionary<DateTimeOffset, int> DailyAvailable => IntervalAvailable.GroupBy(x => new DateTimeOffset(x.Key.Year, x.Key.Month, x.Key.Day, 0, 0, 0, x.Key.Offset)).ToDictionary(x => x.Key, v => v.Sum(y => y.Value));
+        public Dictionary<DateTimeOffset, int> DailyCapacity => HourlyCapacity.GroupBy(x => new DateTimeOffset(x.Key.Year, x.Key.Month, x.Key.Day, 0, 0, 0, x.Key.Offset)).ToDictionary(x => x.Key, v => v.Sum(y => y.Value));
+        public Dictionary<DateTimeOffset, int> DailyBooked => HourlyBooked.GroupBy(x => new DateTimeOffset(x.Key.Year, x.Key.Month, x.Key.Day, 0, 0, 0, x.Key.Offset)).ToDictionary(x => x.Key, v => v.Sum(y => y.Value));
+        public Dictionary<DateTimeOffset, int> DailyAvailable => HourlyAvailable.GroupBy(x => new DateTimeOffset(x.Key.Year, x.Key.Month, x.Key.Day, 0, 0, 0, x.Key.Offset)).ToDictionary(x => x.Key, v => v.Sum(y => y.Value));
 
         public int TotalCapacity => IntervalCapacity.Sum(x => x.Value);
         public int TotalBooked => IntervalBooked.Sum(x => x.Value);
