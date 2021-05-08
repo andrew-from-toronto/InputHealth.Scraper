@@ -130,7 +130,11 @@ namespace InputHealth.Scraper.Job
                     var prevInterval = prevLocation.Availability.Where(x => x.Key == interval.Key);
                     if (!prevInterval.Any())
                     {
-                        locationAvailability.Add($" - {interval.Key:MMM dd} - {newAvailability} appointments (+{newAvailability})");
+                        if (newAvailability >= 3)
+                        {
+                            locationAvailability.Add($" - {interval.Key:MMM dd} - {newAvailability} appointments (+{newAvailability})");
+                        }
+
                         continue; // no data from previous run
                     }
 
