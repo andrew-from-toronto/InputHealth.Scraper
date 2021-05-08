@@ -119,21 +119,27 @@ namespace InputHealth.Scraper.Job
 
                 var locationAvailability = new List<string>();
 
+                // Notify Conditions:
+                //  - We have newly added availability on a given day
+                //  - Previous availability was below 3, and now we're over that
+                //  - The amount of new appointments added is at least 100
                 foreach (var interval in location.Availability)
                 {
+                    var newAvailability = interval.Value;
+
                     var prevInterval = prevLocation.Availability.Where(x => x.Key == interval.Key);
                     if (!prevInterval.Any())
                     {
+                        locationAvailability.Add($" - {interval.Key:MMM dd} - {newAvailability} appointments (+{newAvailability})");
                         continue; // no data from previous run
                     }
 
-                    var newAvailability = interval.Value;
-                    var prevAvailability = interval.Value;
+                    var prevAvailability = prevInterval.FirstOrDefault().Value;
+                    var deltaAvailability = newAvailability - prevAvailability;
 
-                    // We have availability now 
-                    if (prevAvailability <= 0 && newAvailability >= 3)
+                    if ((prevAvailability < 3 && newAvailability >= 3) || deltaAvailability >= 100)
                     {
-                        var deltaAvailability = newAvailability - prevAvailability;
+                        
                         locationAvailability.Add($" - {interval.Key:MMM dd} - {newAvailability} appointments (+{deltaAvailability})");
                     }
                 }
