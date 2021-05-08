@@ -138,7 +138,10 @@ namespace InputHealth.Scraper.Job
                     }
                 }
 
-                emailLocationsAvailability[location.LocationName] = string.Join("\n", locationAvailability);
+                if (locationAvailability.Count > 0)
+                {
+                    emailLocationsAvailability[location.LocationName] = string.Join("\n", locationAvailability);
+                }
             }
 
             if (emailLocationsAvailability.Count > 0)
