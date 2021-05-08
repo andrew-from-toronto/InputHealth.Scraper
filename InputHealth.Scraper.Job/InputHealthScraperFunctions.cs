@@ -1,6 +1,9 @@
 using Azure.Storage.Blobs.Specialized;
+using FluentEmail.Core;
+using FluentEmail.Mailgun;
 using InputHealth.Scraper.Lib;
 using Microsoft.Azure.WebJobs;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
@@ -20,8 +23,14 @@ namespace InputHealth.Scraper.Job
         public KeyValuePair<DateTimeOffset, int>[] Booked { get; set; }
     }
 
-    public static class InputHealthScraperFunction
+    public class InputHealthScraperFunctions
     {
+#if DEBUG
+        const bool DEBUG_MODE = true;
+#else
+        const bool DEBUG_MODE = false;
+#endif
+
         private readonly static Azure.Storage.Blobs.Models.BlockBlobOpenWriteOptions _blobOptions = new Azure.Storage.Blobs.Models.BlockBlobOpenWriteOptions
         {
             HttpHeaders = new Azure.Storage.Blobs.Models.BlobHttpHeaders
@@ -30,8 +39,17 @@ namespace InputHealth.Scraper.Job
             }
         };
 
+        private readonly IConfiguration _configuration;
+        private string MailgunAPIKey => _configuration.GetValue<string>("Values:MailgunAPIKey");
+
+        public InputHealthScraperFunctions(IConfiguration configuration)
+            => _configuration = configuration;
+
+#if DEBUG
+        [Disable]
+#endif
         [FunctionName("VaccinePeelReloadConfiguration")]
-        public static async Task VaccinePeelReloadConfiguration(
+        public async Task VaccinePeelReloadConfiguration(
             ILogger log,
             [TimerTrigger("0 14,29,44,59 * * * *")] TimerInfo myTimer,
             [Blob("generated/configuration.json", FileAccess.ReadWrite, Connection = "OutputStorage")] BlockBlobClient configurationJson)
@@ -45,17 +63,18 @@ namespace InputHealth.Scraper.Job
         }
 
         [FunctionName("VaccinePeelScrapeTimer")]
-        public static async Task VaccinePeelScrapeTimer(
+        public async Task VaccinePeelScrapeTimer(
             ILogger log,
-            [TimerTrigger("0 */5 * * * *")] TimerInfo myTimer,
+            [TimerTrigger("0 */5 * * * *", RunOnStartup = DEBUG_MODE)] TimerInfo myTimer,
             [Blob("generated/configuration.json", FileAccess.Read, Connection = "OutputStorage")] BlockBlobClient configurationJson,
             [Blob("generated/availability.json", FileAccess.ReadWrite, Connection = "OutputStorage")] BlockBlobClient availabilityJson)
         {
             log.LogInformation($"C# Timer trigger function executed at: {DateTime.Now}");
 
-            Configuration configuration;
-            using (var readStream = await configurationJson.OpenReadAsync())
+            Configuration configuration = null;
+            if (await configurationJson.ExistsAsync())
             {
+                using var readStream = await configurationJson.OpenReadAsync();
                 configuration = await JsonSerializer.DeserializeAsync<Configuration>(readStream);
             }
 
@@ -73,11 +92,12 @@ namespace InputHealth.Scraper.Job
                                           Booked = x.DailyBooked.ToArray()
                                       }).ToArray();
 
-            /*OutputAvailability[] prevAvailableIntervals;
-            using (var openStream = await availabilityJson.OpenReadAsync(new Azure.Storage.Blobs.Models.BlobOpenReadOptions(false)))
+            OutputAvailability[] prevAvailableIntervals = Array.Empty<OutputAvailability>();
+            if (await availabilityJson.ExistsAsync())
             {
+                using var openStream = await availabilityJson.OpenReadAsync(new Azure.Storage.Blobs.Models.BlobOpenReadOptions(false));
                 prevAvailableIntervals = await JsonSerializer.DeserializeAsync<OutputAvailability[]>(openStream);
-            }*/
+            }
 
             using (var writeStream = await availabilityJson.OpenWriteAsync(true, _blobOptions))
             {
@@ -85,16 +105,19 @@ namespace InputHealth.Scraper.Job
             }
 
             // notifications
-            /*
+            var emailLocationsAvailability = new Dictionary<string, string>(); //location -> email text block
             foreach (var location in availableIntervals)
             {
+                // Do not notify non-public locations
+                if (!location.LocationPublic) { continue; }
+
                 var prevLocation = prevAvailableIntervals.FirstOrDefault(x => x.LocationId.HasValue && x.LocationId.Value == location.LocationId);
                 if (prevLocation == null)
                 {
                     continue; // no data from previous run
                 }
 
-                var subjectAvailability = new List<string>();
+                var locationAvailability = new List<string>();
 
                 foreach (var interval in location.Availability)
                 {
@@ -107,34 +130,42 @@ namespace InputHealth.Scraper.Job
                     var newAvailability = interval.Value;
                     var prevAvailability = interval.Value;
 
-                    //We have availability now 
-                    if (prevAvailability <= 0 && newAvailability > 0)
+                    // We have availability now 
+                    if (prevAvailability <= 0 && newAvailability >= 3)
                     {
-                        subjectAvailability.Add($"{newAvailability} slots {interval.Key:M (ddd)}");
+                        var deltaAvailability = newAvailability - prevAvailability;
+                        locationAvailability.Add($" - {interval.Key:MMM dd} - {newAvailability} appointments (+{deltaAvailability})");
                     }
                 }
 
-                if (subjectAvailability.Count > 0)
-                {
-                    var sender = new MailgunSender(
-                            "alert.vaccine-peel.ca", // Mailgun Domain
-                            "" // Mailgun API Key
-                        );
-                    Email.DefaultSender = sender;
-                    var email = Email
-                        .From("availability@alert.vaccine-peel.ca")
-                        .To("vaccinepeelca@googlegroups.com")
-                        .Subject($"{location.LocationName} has {string.Join(", ", subjectAvailability)}")
-                        .Body("To book head over to https://peelregion.inputhealth.com/ebooking. Good luck, appointments go fast. Visit https://www.vaccine-peel.ca for a snapshot of availability.");
+                emailLocationsAvailability[location.LocationName] = string.Join("\n", locationAvailability);
+            }
 
-                    var response = await email.SendAsync();
-                }
-            }*/
+            if (emailLocationsAvailability.Count > 0)
+            {
+                var emailBody = string.Join("\n\n", emailLocationsAvailability.Select(kvp => $"{kvp.Key}\n{kvp.Value}"));
+
+                log.LogInformation("Sending availability email with {body}", emailBody);
+
+                var sender = new MailgunSender(
+                        "alert.vaccine-peel.ca",
+                        MailgunAPIKey
+                    );
+                Email.DefaultSender = sender;
+                var email = Email
+                    .From("availability@alert.vaccine-peel.ca")
+                    .ReplyTo("noreply@alert.vaccine-peel.ca")
+                    .To("vaccinepeelca@googlegroups.com")
+                    .Subject($"Alert: New Appointments Available on Peel's Booking System!")
+                    .Body($"To book any of these appointments head over to https://peelregion.inputhealth.com/ebooking. \n\n{emailBody} \n\nVisit https://www.vaccine-peel.ca for a snapshot of availability.");
+
+                var response = await email.SendAsync();
+            }
         }
 
         [FunctionName("VaccinePeelFollowUpsScrapeTimer")]
         [Disable]
-        public static async Task VaccinePeelFollowUpsScrapeTimer(ILogger log,
+        public async Task VaccinePeelFollowUpsScrapeTimer(ILogger log,
             [TimerTrigger("0 0 20-6 * * *")] TimerInfo myTimer,
             [Blob("generated/configuration.json", FileAccess.Read, Connection = "OutputStorage")] BlockBlobClient configurationJson,
             [Blob("generated/availability-followups.json", FileAccess.ReadWrite, Connection = "OutputStorage")] BlockBlobClient availabilityJson)

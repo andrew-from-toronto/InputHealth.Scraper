@@ -6,6 +6,11 @@
     "storage1": {
       "type": "storage.emulator",
       "connectionId": "AzureWebJobsStorage"
+    },
+    "storage2": {
+      "type": "storage.emulator",
+      "connectionId": "OutputStorage",
+      "secretStore": "LocalSecretsFile"
     }
   }
 }
