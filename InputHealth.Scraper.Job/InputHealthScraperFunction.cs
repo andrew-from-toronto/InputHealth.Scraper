@@ -33,7 +33,7 @@ namespace InputHealth.Scraper.Job
         [FunctionName("VaccinePeelReloadConfiguration")]
         public static async Task VaccinePeelReloadConfiguration(
             ILogger log,
-            [TimerTrigger("0 */5 * * * *")] TimerInfo myTimer,
+            [TimerTrigger("0 14,29,44,59 * * * *")] TimerInfo myTimer,
             [Blob("generated/configuration.json", FileAccess.ReadWrite, Connection = "OutputStorage")] BlockBlobClient configurationJson)
         {
             log.LogInformation($"C# Timer trigger function executed at: {DateTime.Now}");
@@ -47,7 +47,7 @@ namespace InputHealth.Scraper.Job
         [FunctionName("VaccinePeelScrapeTimer")]
         public static async Task VaccinePeelScrapeTimer(
             ILogger log,
-            [TimerTrigger("30 */5 * * * *")] TimerInfo myTimer,
+            [TimerTrigger("0 */5 * * * *")] TimerInfo myTimer,
             [Blob("generated/configuration.json", FileAccess.Read, Connection = "OutputStorage")] BlockBlobClient configurationJson,
             [Blob("generated/availability.json", FileAccess.ReadWrite, Connection = "OutputStorage")] BlockBlobClient availabilityJson)
         {
