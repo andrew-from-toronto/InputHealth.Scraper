@@ -33,6 +33,10 @@
         li {
             margin-top: 15px;
         }
+
+        .dayAvailable, .dayBooked {
+            padding: 0 3px;
+        }
     </style>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.1/moment.min.js"
             integrity="sha512-qTXRIMyZIFb8iQcfjXWCO8+M5Tbc38Qi5WzdPOYZHIlZpzBHG3L3by84BBBOiRGiEb7KKtAOAs5qYdUiZiQNNQ=="
@@ -42,6 +46,7 @@
         $(function () {
             var MAX_ADVANCE_DAYS = 15;
             var REFRESH_INTERVAL = 90 * 1000;
+            var DATA_UPDATE_INTERVAL = 5;
 
             function loadAvailability() {
                 var cacheBust = moment().format('x')
@@ -54,11 +59,18 @@
             
             function processAvailability(result, status, xhr) {
                 var lastModified = moment(xhr.getResponseHeader('Last-Modified'));
-                var lastRun = lastModified.clone().startOf('minute').subtract(lastModified.minute() % 5, 'minutes')
+                var lastRun = lastModified.clone().startOf('minute').subtract(lastModified.minute() % DATA_UPDATE_INTERVAL, 'minutes')
                 var lastRunTimeSeconds = lastModified.diff(lastRun, 'seconds');
+                var nextRun = lastRun.clone().add(DATA_UPDATE_INTERVAL, 'minutes')
 
                 $("#last_getdata_on").text(lastRun.format('MMM D (ddd) - hh:mm a') + " (took ~" + lastRunTimeSeconds + "s)");
-                $("#next_getdata_on").text(lastModified.add(5, 'minutes').format('MMM D (ddd) - hh:mm a'));
+
+                var warning = ""
+                if (moment().diff(nextRun, 'minutes') > 2) {
+                    $("#next_getdata_on").html("<span class='warning'>⚠️Data update delayed! Peel's system may be very busy right now.⚠️</span>")
+                } else {
+                    $("#next_getdata_on").text("Next data update will take place at " + nextRun.format('MMM D (ddd) - hh:mm a'));
+                }                
 
                 var calendarStart = moment()
                 var orderedBookings = result
@@ -87,7 +99,7 @@
                 for (var i = 0; i < MAX_ADVANCE_DAYS; i++) {
                     var dayHeader = document.createElement('td');
                     dayHeader = headerRow.appendChild(dayHeader);
-                    dayHeader.innerText = currentDay.format('MMM D (ddd)');
+                    dayHeader.innerText = currentDay.format('MMM-D');
                     currentDay.add(1, 'day');
                 }
 
@@ -134,10 +146,10 @@
                         dayAvailability = dayAvailability.Value
                         cellElement.className = 'slots_available';
                     }
-                    var cellText = dayAvailability
+                    var cellText = "<span class='dayAvailable'>" + dayAvailability + "</span>"
                     if (dayBooked) {
                         var dayTotal = dayAvailability + dayBooked.Value
-                        cellText += " / " + dayTotal + "";
+                        cellText += "/<span class='dayBooked'>" + dayTotal + "</span>";
                     }
                     cellElement.innerHTML = cellText
                     appendedRow.appendChild(cellElement);
@@ -152,12 +164,13 @@
     <h2>vaccine-peel.ca - Vaccine Appointment Availability for clinics in Peel's <a href="https://peelregion.inputhealth.com/ebooking" target="_blank">Primary Booking System</a></h2>
     <p>
         Availability as of <span id='last_getdata_on'></span><br />
-        Next data update will take place at <span id='next_getdata_on'></span>
+        <span id='next_getdata_on'></span>
     </p>
     <p>
         For availability at other clinics in Peel, and the rest of the GTA, please take a look at <a href="https://vaccine-gta.ca/" target="_blank">https://vaccine-gta.ca/</a>. This site is heavily based on their work.
     </p>
     <br />
+    <p>Region of Peel COVID-19 Vaccination Line at 905-791-5202</p>
     <table id='results'>
         <!-- to be inserted by JavaScript code -->
     </table>

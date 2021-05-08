@@ -22,13 +22,44 @@ namespace InputHealth.Scraper.Job
 
     public static class InputHealthScraperFunction
     {
+        private readonly static Azure.Storage.Blobs.Models.BlockBlobOpenWriteOptions _blobOptions = new Azure.Storage.Blobs.Models.BlockBlobOpenWriteOptions
+        {
+            HttpHeaders = new Azure.Storage.Blobs.Models.BlobHttpHeaders
+            {
+                ContentType = "application/json"
+            }
+        };
+
+        [FunctionName("VaccinePeelReloadConfiguration")]
+        public static async Task VaccinePeelReloadConfiguration(
+            ILogger log,
+            [TimerTrigger("0 */5 * * * *")] TimerInfo myTimer,
+            [Blob("generated/configuration.json", FileAccess.ReadWrite, Connection = "OutputStorage")] BlockBlobClient configurationJson)
+        {
+            log.LogInformation($"C# Timer trigger function executed at: {DateTime.Now}");
+
+            var configuration = await InputHealthAPIClient.GetConfiguration(TimeSpan.FromMinutes(15));
+
+            using var writeStream = await configurationJson.OpenWriteAsync(true, _blobOptions);
+            await JsonSerializer.SerializeAsync(writeStream, configuration);
+        }
+
         [FunctionName("VaccinePeelScrapeTimer")]
-        public static async Task VaccinePeelScrapeTimer([TimerTrigger("0 */5 * * * *")] TimerInfo myTimer, ILogger log,
+        public static async Task VaccinePeelScrapeTimer(
+            ILogger log,
+            [TimerTrigger("30 */5 * * * *")] TimerInfo myTimer,
+            [Blob("generated/configuration.json", FileAccess.Read, Connection = "OutputStorage")] BlockBlobClient configurationJson,
             [Blob("generated/availability.json", FileAccess.ReadWrite, Connection = "OutputStorage")] BlockBlobClient availabilityJson)
         {
             log.LogInformation($"C# Timer trigger function executed at: {DateTime.Now}");
 
-            var availability = await InputHealthAPIClient.GetAvailabilityAsync();
+            Configuration configuration;
+            using (var readStream = await configurationJson.OpenReadAsync())
+            {
+                configuration = await JsonSerializer.DeserializeAsync<Configuration>(readStream);
+            }
+
+            var availability = await InputHealthAPIClient.GetAvailabilityAsync(configuration, TimeSpan.FromMinutes(15));
 
             var availableIntervals = (from x in availability
                                       orderby x.Id ascending
@@ -48,15 +79,10 @@ namespace InputHealth.Scraper.Job
                 prevAvailableIntervals = await JsonSerializer.DeserializeAsync<OutputAvailability[]>(openStream);
             }*/
 
-            using (var writeStream = await availabilityJson.OpenWriteAsync(true))
+            using (var writeStream = await availabilityJson.OpenWriteAsync(true, _blobOptions))
             {
                 await JsonSerializer.SerializeAsync(writeStream, availableIntervals);
             }
-
-            await availabilityJson.SetHttpHeadersAsync(new Azure.Storage.Blobs.Models.BlobHttpHeaders
-            {
-                ContentType = "application/json"
-            });
 
             // notifications
             /*
@@ -107,14 +133,22 @@ namespace InputHealth.Scraper.Job
         }
 
         [FunctionName("VaccinePeelFollowUpsScrapeTimer")]
-        public static async Task VaccinePeelFollowUpsScrapeTimer([TimerTrigger("0 0 6-20 * * *", RunOnStartup = true)] TimerInfo myTimer, ILogger log,
+        [Disable]
+        public static async Task VaccinePeelFollowUpsScrapeTimer(ILogger log,
+            [TimerTrigger("0 0 20-6 * * *")] TimerInfo myTimer,
+            [Blob("generated/configuration.json", FileAccess.Read, Connection = "OutputStorage")] BlockBlobClient configurationJson,
             [Blob("generated/availability-followups.json", FileAccess.ReadWrite, Connection = "OutputStorage")] BlockBlobClient availabilityJson)
         {
             log.LogInformation($"C# Timer trigger function executed at: {DateTime.UtcNow}");
 
             var followUpStartDate = DateTime.UtcNow.AddDays((7 * 6) + 1); // Start 6 weeks + 1 day ahead 
 
-            var availability = await InputHealthAPIClient.GetAvailabilityAsync(followUpStartDate, followUpStartDate.AddDays(7 * 6));
+            Configuration configuration;
+            using (var readStream = await configurationJson.OpenReadAsync())
+            {
+                configuration = await JsonSerializer.DeserializeAsync<Configuration>(readStream);
+            }
+            var availability = await InputHealthAPIClient.GetAvailabilityAsync(followUpStartDate, followUpStartDate.AddDays(7 * 6), configuration, TimeSpan.FromMinutes(5));
 
             var availableIntervals = (from x in availability
                                       orderby x.Id ascending

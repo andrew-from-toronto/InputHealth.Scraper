@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace InputHealth.Scraper.Lib.Model
 {
@@ -11,6 +12,24 @@ namespace InputHealth.Scraper.Lib.Model
         public OnTime[] on_times { get; set; }
         public ProviderUserOffTime[] provider_user_off_times { get; set; }
         public Appointment[] appointments { get; set; }
+        public string appointments_csv { get; set; }
+
+        public Appointment[] GetAppointments()
+        {
+            return appointments
+                ?? appointments_csv
+                    .Split('\n')
+                    .Skip(1)
+                    .Select(a => a.Split(','))
+                    .Where(a => a.Length == 4)
+                    .Select(a => new Appointment
+                    {
+                        id = Convert.ToInt32(a[0]),
+                        provider_user_id = Convert.ToInt32(a[1]),
+                        start_at = DateTimeOffset.Parse(a[2]),
+                        until_at = DateTimeOffset.Parse(a[3])
+                    }).ToArray();
+        }
     }
 
     public class OnTime

@@ -13,7 +13,7 @@ namespace InputHealth.Scraper.Lib
     {
         public static bool EMULATE_DATA = false;
 
-        public static async Task<Configuration> GetConfiguration()
+        public static async Task<Configuration> GetConfiguration(TimeSpan? requestTimeout = null)
         {
             const string emulationPath = "EmulatedData/Configuration.json";
 
@@ -24,7 +24,10 @@ namespace InputHealth.Scraper.Lib
             }
             else
             {
-                var httpClient = new HttpClient();
+                var httpClient = new HttpClient()
+                {
+                    Timeout = requestTimeout ?? TimeSpan.FromMinutes(10)
+                };
                 rawJson = await httpClient.GetStringAsync("https://peelregion.region-of-peel.inputhealth.com/public/appointments/configuration");
 #if DEBUG
                 await File.WriteAllTextAsync(emulationPath, rawJson);
@@ -34,8 +37,8 @@ namespace InputHealth.Scraper.Lib
             return JsonSerializer.Deserialize<Configuration>(rawJson);
         }
 
-        public static async Task<Schedule> GetSchedule() => await GetSchedule(DateTime.UtcNow, DateTime.UtcNow.AddMonths(1));
-        public static async Task<Schedule> GetSchedule(DateTime from, DateTime to)
+        public static async Task<Schedule> GetSchedule(TimeSpan? requestTimeout = null) => await GetSchedule(DateTime.UtcNow, DateTime.UtcNow.AddMonths(1), requestTimeout);
+        public static async Task<Schedule> GetSchedule(DateTime from, DateTime to, TimeSpan? requestTimeout = null)
         {
             const string emulationPath = "EmulatedData/Schedule.json";
 
@@ -46,7 +49,10 @@ namespace InputHealth.Scraper.Lib
             }
             else
             {
-                var httpClient = new HttpClient();
+                var httpClient = new HttpClient()
+                {
+                    Timeout = requestTimeout ?? TimeSpan.FromMinutes(10)
+                };
                 rawJson = await httpClient.GetStringAsync($"https://peelregion.region-of-peel.inputhealth.com/public/appointments/schedules?from={from.ToString("yyyy-MM-dd")}&to={to.ToString("yyyy-MM-dd")}&practitioner_id=");
 #if DEBUG
                 await File.WriteAllTextAsync(emulationPath, rawJson);
@@ -55,14 +61,15 @@ namespace InputHealth.Scraper.Lib
 
             return JsonSerializer.Deserialize<Schedule>(rawJson);
         }
-        
-        public static async Task<LocationAvailability[]> GetAvailabilityAsync() => await GetAvailabilityAsync(DateTime.UtcNow, DateTime.UtcNow.AddMonths(1));
-        public static async Task<LocationAvailability[]> GetAvailabilityAsync(DateTime from, DateTime to)
+
+        public static async Task<LocationAvailability[]> GetAvailabilityAsync(Configuration config = null, TimeSpan? requestTimeout = null)
+            => await GetAvailabilityAsync(DateTime.UtcNow, DateTime.UtcNow.AddMonths(1), config);
+        public static async Task<LocationAvailability[]> GetAvailabilityAsync(DateTime from, DateTime to, Configuration config = null, TimeSpan? requestTimeout = null)
         {
             var cutOffTime = DateTimeOffset.Now.AddMinutes(-15);
 
-            var config = await GetConfiguration();
-            var schedule = await GetSchedule(from, to);
+            config = config ?? await GetConfiguration(requestTimeout);
+            var schedule = await GetSchedule(from, to, requestTimeout);
 
             var locationAvailabilities = new Dictionary<int, LocationAvailability>();
 
@@ -70,6 +77,12 @@ namespace InputHealth.Scraper.Lib
             foreach (var onTime in schedule.on_times.OrderBy(x => x.from).ThenBy(x => x.until))
             {
                 var locationId = onTime.flexible_hour.location_id;
+                var configLocation = config.locations.Where(x => x.id == locationId);
+
+                if (!configLocation.Any())
+                {
+                    continue; //config missing location, lets skip for now
+                }
 
                 if (!locationAvailabilities.TryGetValue(locationId, out var location))
                 {
@@ -124,7 +137,7 @@ namespace InputHealth.Scraper.Lib
             };
 
             // Load in booked intervals
-            foreach (var apt in schedule.appointments.OrderBy(x => x.start_at))
+            foreach (var apt in schedule.GetAppointments().OrderBy(x => x.start_at))
             {
                 var location = locationAvailabilities.Values.Where(x => x.ProviderUserIds.Contains(apt.provider_user_id)).FirstOrDefault()
                     ?? locationAvailabilities.Values.FirstOrDefault(x => x.Id == config.services_mapped_with_on_time.Where(x => x.provider_user_id == apt.provider_user_id).FirstOrDefault()?.location_id) // check if the mapping to location exists in config
