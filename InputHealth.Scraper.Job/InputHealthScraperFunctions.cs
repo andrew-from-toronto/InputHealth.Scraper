@@ -146,7 +146,7 @@ namespace InputHealth.Scraper.Job
 
             if (emailLocationsAvailability.Count > 0)
             {
-                var emailBody = string.Join("\n\n", emailLocationsAvailability.Select(kvp => $"{kvp.Key}\n{kvp.Value}"));
+                var emailBody = string.Join("\n\n", emailLocationsAvailability.Select(kvp => $"{kvp.Key}:\n{kvp.Value}"));
 
                 log.LogInformation("Sending availability email with {body}", emailBody);
 
