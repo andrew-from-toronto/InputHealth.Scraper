@@ -49,7 +49,8 @@
             var DATA_UPDATE_INTERVAL = 5;
 
             function loadAvailability() {
-                var cacheBust = moment().format('x')
+                var now = moment()
+                var cacheBust = now.format('YYYYMMDDHHMM') + (Math.round(now.format('s') / 15)).toString()
                 $.getJSON('https://vaccinepeelcapublic.blob.core.windows.net/generated/availability.json?t=' + cacheBust)
                     .done(processAvailability);
             }
