@@ -45,7 +45,6 @@
     <script>
         $(function () {
             var MAX_ADVANCE_DAYS = 15;
-            var REFRESH_INTERVAL = 90 * 1000;
             var DATA_UPDATE_INTERVAL = 5;
 
             function loadAvailability() {
@@ -56,13 +55,21 @@
             }
 
             loadAvailability();
-            setInterval(loadAvailability, REFRESH_INTERVAL);
             
             function processAvailability(result, status, xhr) {
                 var lastModified = moment(xhr.getResponseHeader('Last-Modified'));
                 var lastRun = lastModified.clone().startOf('minute').subtract(lastModified.minute() % DATA_UPDATE_INTERVAL, 'minutes')
                 var lastRunTimeSeconds = lastModified.diff(lastRun, 'seconds');
                 var nextRun = lastRun.clone().add(DATA_UPDATE_INTERVAL, 'minutes')
+
+                var nextRunDiff = nextRun.diff(moment(), 'seconds')
+                if (nextRunDiff > 0) {
+                    // Data update upcoming
+                    setTimeout(loadAvailability, (nextRunDiff + 10) * 1000);
+                } else {
+                    // Data update delayed, try every 10s
+                    setTimeout(loadAvailability, 10 * 1000);
+                }
 
                 $("#last_getdata_on").text(lastRun.format('MMM D (ddd) - hh:mm a') + " (took ~" + lastRunTimeSeconds + "s)");
 
