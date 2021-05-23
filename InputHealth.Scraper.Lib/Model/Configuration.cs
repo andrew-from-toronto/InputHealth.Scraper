@@ -13,6 +13,9 @@
         public int? id { get; set; }
         public string name { get; set; }
         public bool @public { get; set; }
+        public string full_address { get; set; }
+        public string latitude { get; set; }
+        public string longitude { get; set; }
     }
 
     public class Service

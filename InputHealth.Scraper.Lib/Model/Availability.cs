@@ -9,6 +9,8 @@ namespace InputHealth.Scraper.Lib.Model
         public int Id => location.id.HasValue ? location.id.Value : -1;
         public string Name => location.name;
         public bool IsPublic => location.@public;
+        public string Address => location.full_address;
+        public string LatLng => $"{location.latitude},{location.longitude}";
 
         public Dictionary<DateTimeOffset, int> IntervalCapacity { get; set; } = new Dictionary<DateTimeOffset, int>();
         public Dictionary<DateTimeOffset, int> IntervalBooked { get; set; } = new Dictionary<DateTimeOffset, int>();

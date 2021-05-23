@@ -19,6 +19,8 @@ namespace InputHealth.Scraper.Job
         public int? LocationId { get; set; }
         public string LocationName { get; set; }
         public bool LocationPublic { get; set; }
+        public string LocationAddress { get; set; }
+        public string LocationLatLng { get; set; }
         public KeyValuePair<DateTimeOffset, int>[] Availability { get; set; }
         public KeyValuePair<DateTimeOffset, int>[] Booked { get; set; }
     }
@@ -88,6 +90,8 @@ namespace InputHealth.Scraper.Job
                                           LocationId = x.Id,
                                           LocationName = $"{x.Name}",
                                           LocationPublic = x.IsPublic,
+                                          LocationAddress = x.Address,
+                                          LocationLatLng = x.LatLng,
                                           Availability = Availability,
                                           Booked = x.DailyBooked.ToArray()
                                       }).ToArray();
@@ -121,20 +125,23 @@ namespace InputHealth.Scraper.Job
 
                 // Notify Conditions:
                 //  - We have newly added availability on a given day
+                //  - We have a location that just switched to public, and availability over 3 now
                 //  - Previous availability was below 3, and now we're over that
                 //  - The amount of new appointments added is at least 100
                 foreach (var interval in location.Availability)
                 {
+                    // Only notify on future date/times
+                    if (interval.Key <= DateTimeOffset.UtcNow)
+                    {
+                        continue;
+                    }
+
                     var newAvailability = interval.Value;
 
                     var prevInterval = prevLocation.Availability.Where(x => x.Key == interval.Key);
-                    if (!prevInterval.Any())
+                    if ((!prevInterval.Any() || !prevLocation.LocationPublic) && newAvailability >= 3)
                     {
-                        if (newAvailability >= 3)
-                        {
-                            locationAvailability.Add($" - {interval.Key:MMM dd} - {newAvailability} appointments (+{newAvailability})");
-                        }
-
+                        locationAvailability.Add($" - {interval.Key:MMM dd} - {newAvailability} appointments (+{newAvailability})");
                         continue; // no data from previous run
                     }
 
@@ -143,7 +150,6 @@ namespace InputHealth.Scraper.Job
 
                     if ((prevAvailability < 3 && newAvailability >= 3) || deltaAvailability >= 100)
                     {
-                        
                         locationAvailability.Add($" - {interval.Key:MMM dd} - {newAvailability} appointments (+{deltaAvailability})");
                     }
                 }
